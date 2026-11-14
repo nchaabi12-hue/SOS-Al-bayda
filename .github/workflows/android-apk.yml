@@ -1,0 +1,39 @@
+name: Android APK (debug)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      SOS_APP_URL: ${{ vars.SOS_APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Décompresse le projet
+        run: unzip -q sos-al-bayda-v4.3.2.zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sos500/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Installer
+        working-directory: sos500
+        run: npm ci --no-audit --no-fund
+      - name: Tests hors ligne
+        working-directory: sos500
+        run: node --experimental-strip-types --test src/lib/collecte/*.test.ts && node --test scripts/sw.test.mjs
+      - name: Générer le projet Android
+        working-directory: sos500
+        run: test -d android || npx cap add android
+      - name: Build APK debug
+        working-directory: sos500
+        run: npm run android:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sos-al-bayda-debug-apk
+          path: sos500/android/app/build/outputs/apk/debug/*.apk
